@@ -9,44 +9,127 @@ import random
 cards = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
 cards_values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10, 10]
 
-
-#Function di update the blackjack table
-def update_table(first_hand, first_hand_total, dealer_hand, dealer_total):
+#Creating or Updating table
+def table(player_first_hand, player_first_hand_total, dealer_hand, dealer_total):
   embed = discord.Embed(
-    title="BlackJack",  #Creating Embed table
-    description="Your cards: \n" + ' '.join(first_hand) + "\nTotal = " +
-    str(first_hand_total) + "\n\n" + "Dealer cards: \n" +
-    ' '.join(dealer_hand) + "\nTotal = " + str(dealer_total))
+    title = "BlackJack",
+    description = "Your hand: \n" + ' '.join(player_first_hand) + "\n" + 
+                  "Total --> " + str(player_first_hand_total) + "\n\n" +
+                  "Dealer hand\n" + dealer_hand[0] + ' #' + "\n",
+    color = discord.Color.red()
+  )
+  embed.set_footer(text="-DiscoGambling")
   return embed
 
+#Updating table after dealer move
+def end_table(player_first_hand, player_first_hand_total, dealer_hand, dealer_total):
+  embed = discord.Embed(
+    title = "BlackJack",
+    description = "Your hand: \n" + ' '.join(player_first_hand) + "\n" + 
+                  "Total: " + str(player_first_hand_total) + "\n\n" +
+                  "Dealer hand\n" + ' '.join(dealer_hand) + "\n" + 
+                  "Dealer total: " + str(dealer_total),
+    color = discord.Color.red()
+  )
+  embed.set_footer(text="-DiscoGambling")
+  return embed
+
+def check_bust(total):
+  if total > 21:
+    return True
+  else:
+    return False
+
+def check_dealer_stand(total):
+  if total < 17:
+    return False
+  else:
+    return True
+
+def dealer_phase(id):
+  with open(str(id) + ".json") as file: #Opens userid.json and store data in data
+      data = json.load(file)
+
+  while not data["dealer_bust"] and not data["dealer_stand"]:
+    last_value = cards[random.randint(1,12)]
+    data["dealer_hand"].append(last_value)
+    data["dealer_total"] = data["dealer_total"] + cards_values[cards.index(last_value)]
+
+    data["dealer_bust"] = check_bust(data["dealer_total"])
+    data["dealer_stand"] = check_dealer_stand(data["dealer_total"])
+
+  with open(str(id) + ".json", 'w') as file: #Updates userid.json
+        json.dump(data, file)
 
 class Buttons(discord.ui.View):
-
   def __init__(self, *, timeout=180):
-    super().__init__(timeout=timeout)
+        super().__init__(timeout=timeout)
 
-  @discord.ui.button(label="Hit", style=discord.ButtonStyle.red)
-  async def hit(
-    self,
-    interaction: discord.Interaction,
-    button: discord.ui.Button,
-  ):
-    with open(str(interaction.user.id) + ".json") as f:
-      data = json.load(f)
-    print('hit button pressed')
+  #Button for hit
+  @discord.ui.button(label="Hit",style=discord.ButtonStyle.blurple)
+  async def hit(self,interaction:discord.Interaction, button:discord.ui.Button,):
+      with open(str(interaction.user.id) + ".json") as file: #Opens user.id json and store data in data
+        data = json.load(file)
 
-    # while not data["player_stand"] or not data["player_bust"]:
-    #   if not data["first_hand_stand"] or not data["first_hand_bust"]:
-    #     data["player_last_value"] = cards[random.randint(1, 12)]
-    #     data["first_hand"].append(data["player_last_value"])
-    #     data["first_hand_total"] = data["first_hand_total"] + cards_values[
-    #       cards.index(data["player_last_value"])]
+      if not data["player_stand"] and not data["player_bust"]: #Checks if player have not busted or standed
+        last_value = cards[random.randint(1, 12)] #Gets a new value
+        data["player_first_hand"].append(last_value) #Appends the new value to player first hand
+        data["player_first_hand_total"] = data["player_first_hand_total"] + cards_values[cards.index(last_value)] #Calculate new total first hand
 
-    #     embed = update_table(data["first_hand"], data["first_hand_total"],
-    #                          data["dealer_hand"], data["dealer_total"])
-    #     await interaction.response.edit_message(embed=embed)
-    await interaction.response.send_message("ok")
+        data["player_bust"] = check_bust(data["player_first_hand_total"])
+        
+        with open(str(interaction.user.id) + ".json", 'w') as file: #Updates userid.json
+          json.dump(data, file)
 
+        embed = table(data["player_first_hand"], data["player_first_hand_total"], data["dealer_hand"], data["dealer_total"]) #Updating table
+        if not data["player_bust"]:
+          await interaction.response.edit_message(embed = embed) #Posting updated table
+        else:
+          embed = end_table(data["player_first_hand"], data["player_first_hand_total"], data["dealer_hand"], data["dealer_total"]) #Updating table
+          await interaction.response.edit_message(embed = embed, view=None) #Posting updated table
+          
+
+  #Button for stand
+  @discord.ui.button(label="Stand", style=discord.ButtonStyle.red)
+  async def stand(self,interaction:discord.Interaction, button:discord.ui.Button,):
+      dealer_phase(interaction.user.id)
+      with open(str(interaction.user.id) + ".json") as file: #Opens userid.json and store data in data
+        data = json.load(file)
+
+      data["player_stand"] = True #Sets player stand on true
+      
+      with open(str(interaction.user.id) + ".json", 'w') as file: #Saves new data
+          json.dump(data, file)
+
+      embed = end_table(data["player_first_hand"], data["player_first_hand_total"], data["dealer_hand"], data["dealer_total"]) #Updating table
+      await interaction.response.edit_message(embed = embed, view = None)
+
+  #Button for doubledown
+  @discord.ui.button(label="Double-Down", style=discord.ButtonStyle.green)
+  async def doubledown(self,interaction:discord.Interaction, button:discord.ui.Button,):
+    with open(str(interaction.user.id) + ".json") as file: #Opens userid.json and store data in data
+        data = json.load(file)
+
+    if not len(data["player_first_hand"]) > 2:
+        dealer_phase(interaction.user.id)
+        last_value = cards[random.randint(1, 12)] #Gets a new value
+        data["player_first_hand"].append(last_value) #Appends the new value to player first hand
+        data["player_first_hand_total"] = data["player_first_hand_total"] + cards_values[cards.index(last_value)] #Calculate new total first hand
+
+        data["player_bust"] = check_bust(data["player_first_hand_total"])
+        data["player_stand"] = True
+        with open(str(interaction.user.id) + ".json", 'w') as file: #Updates userid.json
+          json.dump(data, file)
+
+        embed = end_table(data["player_first_hand"], data["player_first_hand_total"], data["dealer_hand"], data["dealer_total"]) #Updating table
+        await interaction.response.edit_message(embed = embed, view=None) #Posting updated table
+
+  #Button for split
+  @discord.ui.button(label="Split", style=discord.ButtonStyle.danger)
+  async def split(self,interaction:discord.Interaction, button:discord.ui.Button,):
+    with open(str(interaction.user.id) + ".json") as file: #Opens userid.json and store data in data
+        data = json.load(file)
+    
 class BlackJack(commands.Cog):
 
   def __init__(self, bot):  #Setting the bot
@@ -74,83 +157,50 @@ class BlackJack(commands.Cog):
   @app_commands.command(name="blackjack",
                         description="Play a game of blackjack")
   async def blackjack(self, interaction: discord.Interaction):
-    print("ok")
-    #Initializing player
-    first_hand = [  #First hand of the player in case of split or main hand
-      Buttons.cards[random.randint(0, 12)],
-      Buttons.cards[random.randint(0, 12)]
-    ]
+    print("/blackjack has been triggered") #logs
 
-    second_hand = [first_hand[1]]  #Second hand of the player in case of split
-    first_hand_total = Buttons.cards_values[Buttons.cards.index(
-      first_hand[0])] + Buttons.cards_values[Buttons.cards.index(
-        first_hand[1])]  #First hand or main total value
-    second_hand_total = Buttons.cards_values[Buttons.cards.index(
-      second_hand[0])]  #Second hand total value
-    player_last_value = 0  #Player last value
-
-    #Initializing dealer
-    dealer_hand = [
-      Buttons.cards[random.randint(0, 12)],
-      Buttons.cards[random.randint(0, 12)]
-    ]  #Dealer hand
-
-    dealer_total = Buttons.cards_values[Buttons.cards.index(
-      dealer_hand[0])] + Buttons.cards_values[Buttons.cards.index(
-        dealer_hand[1])]  #Dealer hand total value
-
-    #Player booleans
-    first_hand_stand = False  #Main or first hand stands
-    first_hand_bust = False  #Main or first hand busts
-    first_hand_doubledown = False  #Main or first hand doubledown
-
-    second_hand_stand = False  #Second hand stands
-    second_hand_bust = False  #Second hand busts
-    second_hand_doubledown = False  #Second hand doubledown
-
-    player_stand = False  #Use this in case not split
-    player_bust = False  #Use this in case not split
-
-    split = False  #Player split
-
-    #Dealer booleans
-    dealer_stand = False  #Dealer stands
-    dealer_bust = False  #Dealer bust
-
-    #Embed
-    embed = discord.Embed(
-      title="BlackJack",  #Creating Embed table
-      description="Your cards: \n" + ' '.join(first_hand) + "\nTotal = " +
-      str(first_hand_total) + "\n\n" + "Dealer cards: \n" +
-      ' '.join(dealer_hand) + "\nTotal = " + str(dealer_total))
-
-    with open(str(interaction.user.id) + ".json", 'w') as f:
-      data = {
-        #player data
-        "first_hand": first_hand,
-        "second_hand": second_hand,
-        "first_hand_total": first_hand_total,
-        "second_hand_total": second_hand_total,
-        "player_last_value": player_last_value,
-        "first_hand_stand": first_hand_stand,
-        "second_hand_stand": second_hand_stand,
-        "player_stand": player_stand,
-        "first_hand_bust": first_hand_bust,
-        "second_hand_bust": second_hand_bust,
-        "player_bust": player_bust,
-        "first_hand_doubledown": first_hand_doubledown,
-        "second_hand_doubledown": second_hand_doubledown,
-        "split": split,
-
-        #dealer data
-        "dealer_hand": dealer_hand,
-        "dealer_total": dealer_total,
-        "dealer_bust": dealer_bust,
-        "dealer_stand": dealer_stand
+    #Creating json data
+    data = {
+        #Player hands
+        "player_first_hand": [cards[random.randint(1,12)], cards[random.randint(1,12)]],
+        "player_second_hand": ['A'],
+  
+        #Player totals
+        "player_first_hand_total": 2,
+        "player_second_hand_total": 2,
+  
+        #Player events:
+        "player_first_hand_bust": False,
+        "player_second_hand_bust": False,
+        "player_bust": False,
+  
+        "player_first_hand_stand": False,
+        "player_second_hand_stand": False,
+        "player_stand": False,
+  
+        "player_doubledown": False,
+        "player_split": False,
+  
+        #Dealer hands
+        "dealer_hand": [cards[random.randint(1,12)], cards[random.randint(1,12)]],
+  
+        #Deaer totals
+        "dealer_total": 2,
+  
+        #Dealer events
+        "dealer_stand": False,
+        "dealer_bust": False
       }
-      json.dump(data, f)
 
-    await interaction.response.send_message(embed=embed, view=Buttons())
+    data["player_first_hand_total"] = cards_values[cards.index(data["player_first_hand"][0])] + cards_values[cards.index(data["player_first_hand"][1])]
+    data["dealer_total"] = cards_values[cards.index(data["dealer_hand"][0])] + cards_values[cards.index(data["dealer_hand"][1])]
+    
+    #Storing variables
+    with open(str(interaction.user.id) + ".json", 'w') as f:
+      json.dump(data, f) #Dumping data
+
+    embed = table(data["player_first_hand"], data["player_first_hand_total"], data["dealer_hand"], data["dealer_total"])
+    await interaction.response.send_message(embed = embed, view=Buttons())
 
 
 async def setup(bot):

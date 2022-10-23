@@ -1,0 +1,17 @@
+{
+  "player_first_hand": ["6", "4"], 
+  "player_second_hand": ["A"], 
+  "player_first_hand_total": 10, 
+  "player_second_hand_total": 2, 
+  "player_first_hand_bust": false, 
+  "player_second_hand_bust": false, 
+  "player_bust": false, 
+  "player_first_hand_stand": false, 
+  "player_second_hand_stand": false, 
+  "player_stand": false, 
+  "player_doubledown": false, 
+  "player_split": false, 
+  "dealer_hand": ["3", "6"], 
+  "dealer_total": 9, "dealer_stand": 
+  false, "dealer_bust": false
+}
