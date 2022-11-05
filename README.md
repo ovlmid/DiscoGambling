@@ -1,10 +1,10 @@
 # DiscoGambling
 DiscoGambling is a discord.py bot,
 
-His job is to let the users play various
-gambling game like:
-
---> Blackjack
+His job is to let the users play various \n
+gambling game like:\n
+\n
+--> Blackjack 
 --> Poker
 --> Roulotte
 --> Slots
